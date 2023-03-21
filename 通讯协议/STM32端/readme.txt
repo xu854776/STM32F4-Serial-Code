@@ -26,14 +26,20 @@ CDC_TransmitCplt_FS()是中断服务函数，可以让STM32中断来接收数据
 里面仅包含上述5个函数的定义。
 
 4、Serial.c
-里面包含CDC_SendFeed() , CDC_Receive() , Pack_Data() , UnPack_Data_Cha() , UnPack_Data_Pan()五个函数的具体实现
+里面包含CDC_SendFeed() , CDC_Receive() , Pack_Data() , UnPack_Data_Cha() , UnPack_Data_Pan()，Pack_Data_ROS2()，
+UnPack_Data_ROS2()，CDC_Receive_ROS2()，Data_Select()，CRC16_Byte()，CRC_Byte()等函数的具体实现
 CDC_SendFeed() 是发送反馈数据的函数。
 CDC_Receive() 是接收控制数据的函数，内部会通过帧头的不同来调用不同的解包函数，从而分别处理底盘和云台的控制数据。
 如果该函数返回一个-1，那么说明没有收到有效数据。
 Pack_Data() 是打包反馈数据的函数，它留有一个空位，可以自己添加一个字节的数据。
 UnPack_Data_Cha() 是解码底盘控制数据的函数。
 UnPack_Data_Pan() 是解码云台控制数据的函数。
-
+Pack_Data_ROS2()打包函数，需要和Data_Select结合使用
+UnPack_Data_ROS2()  解包函数，因为uint8_t转float类型时，编译器会认为帧头是float的一部分，从而产生错误。
+所以为了消除这种问题，需要让上位机在float类型前多发送两个字节空数据，从而绕过这种错误。
+CDC_Receive_ROS2()  接收函数
+Data_Select()  剔除无用发送数据，因为位域会导致打包后的数组多了两个字节，所以要用该函数剔除无用数据
+Get_CRC16_Check_Sum() CRC校验码生成，该校验码是以字节方式生成的
 5、Serial.h
 里面包含了反馈数据，底盘控制数据，云台控制数据的结构体的具体定义，以及某些结构体成员的枚举。
 注意结构体的内容，如typedef struct ControlData_Pan _controldata_pan;  的_controldata_pan，这是结构体的别名
@@ -46,8 +52,8 @@ UnPack_Data_Pan() 是解码云台控制数据的函数。
 **********
 基本操作：
 发送数据：
-先定义对应结构体以及相应合适的缓冲数组，然后再给结构体分配空间，赋值（可以不赋，等待读入数值）。
-然后利用打包函数，打包好数据，接着用发送函数CDC_SendFeed()来发送数据。
+先定义对应结构体以及相应合适的缓冲数组，然后再给结构体分配空间，赋值（可以不赋，等待读入数值），然后使用CRC校验码生成程序生成校验码。
+接着利用打包函数，打包好数据，接着使用数据挑选函数Data_Select()剔除无用数据，最后用发送函数CDC_SendFeed()来发送数据。
 接收数据
 先定义对应结构体以及相应合适的缓冲数组，然后再给结构体分配空间，赋值（可以不赋，等待读入数值）。
 然后利用接收函数（接收函数内部写好了解包函数），获得含有数据的结构体。
@@ -66,7 +72,6 @@ https://www.cnblogs.com/MORAN-123/p/17084387.html  关于STM32CubeIDE无法正�
 **********
 禁止外传，商业以及非本战队意愿的私自使用以及修改。
 **********
-
 
 
 
